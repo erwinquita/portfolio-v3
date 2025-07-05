@@ -19,6 +19,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Admin - Portfolio Management</title>
+</svelte:head>
+
 <div class="container">
   <div class="text-center mb-4">
     <h1 style="font-size: var(--font-size-8); margin-bottom: var(--size-4);">Welcome to Portfolio App</h1>

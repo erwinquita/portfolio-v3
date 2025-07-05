@@ -1,7 +1,7 @@
 body {
   font-family: var(--font-sans);
   /* background-color: var(--gray-0); */
-  color: var(--gray-9);
+  /* color: var(--gray-9); */
   line-height: var(--font-lineheight-3);
 }
 
@@ -26,18 +26,18 @@ body {
 }
 
 .nav a {
-  color: var(--gray-7);
+  /* color: var(--gray-7); */
   text-decoration: none;
   font-weight: var(--font-weight-5);
   transition: color 0.2s;
 }
 
 .nav a:hover {
-  color: var(--blue-6);
+  /* color: var(--blue-6); */
 }
 
 .nav a[aria-current="page"] {
-  color: var(--blue-6);
+  /* color: var(--blue-6); */
 }
 
 .grid {
@@ -50,21 +50,21 @@ body {
   border: 1px solid var(--gray-3);
   border-radius: var(--radius-2);
   padding: var(--size-4);
-  background: var(--gray-1);
+  /* background: var(--gray-1); */
 }
 
 .card h3 {
   margin-top: 0;
-  color: var(--gray-9);
+  /* color: var(--gray9); */
 }
 
 .card p {
-  color: var(--gray-7);
+  /* color: var(--gray-7); */
   margin-bottom: var(--size-3);
 }
 
 .card a {
-  color: var(--blue-6);
+  /* color: var(--blue-6); */
   text-decoration: none;
   font-weight: var(--font-weight-5);
 }
@@ -81,7 +81,7 @@ body {
   display: block;
   margin-bottom: var(--size-1);
   font-weight: var(--font-weight-5);
-  color: var(--gray-8);
+  /* color: var(--gray-8); */
 }
 
 .form-group input,
@@ -122,7 +122,7 @@ dialog::backdrop {
 dialog h2 {
   margin-top: 0;
   margin-bottom: var(--size-4);
-  color: var(--gray-9);
+  /* color: var(--gray-9); */
 }
 
 .dialog-actions {
