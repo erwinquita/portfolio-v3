@@ -1,6 +1,7 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
+  import { toast } from 'svelte-sonner';
   
   let { data } = $props();
   
@@ -13,6 +14,7 @@
   
   let isEditing = $state(false);
   let originalFormData = $state({});
+  let hasChanges = $state(false);
   
   function openCreateDialog() {
     createDialog?.showModal();
@@ -28,6 +30,7 @@
       categoryId: portfolio.categoryId
     };
     isEditing = false;
+    hasChanges = false;
     editDialog?.showModal();
   }
   
@@ -44,9 +47,11 @@
     deletingPortfolio = null;
     isEditing = false;
     originalFormData = {};
+    hasChanges = false;
   }
   
-  function checkForChanges(formData) {
+  function checkForChanges(event) {
+    const formData = new FormData(event.target.form);
     const currentData = {
       title: formData.get('title'),
       description: formData.get('description'),
@@ -55,21 +60,13 @@
       categoryId: parseInt(formData.get('categoryId'))
     };
     
-    const hasChanges = Object.keys(originalFormData).some(key => 
+    hasChanges = Object.keys(originalFormData).some(key => 
       originalFormData[key] !== currentData[key]
     );
-    
-    if (!hasChanges) {
-      alert('No changes detected. Please modify the form before submitting.');
-      return false;
-    }
-    
-    return true;
   }
   
   function handleEditSubmit(event) {
-    const formData = new FormData(event.target);
-    if (!checkForChanges(formData)) {
+    if (!hasChanges) {
       event.preventDefault();
       return;
     }
@@ -125,6 +122,9 @@
       if (result.type === 'success') {
         closeDialogs();
         await invalidateAll();
+        toast.success('Portfolio created successfully!');
+      } else if (result.type === 'failure') {
+        toast.error('Failed to create portfolio. Please try again.');
       }
     };
   }}>
@@ -180,6 +180,9 @@
         if (result.type === 'success') {
           closeDialogs();
           await invalidateAll();
+          toast.success('Portfolio updated successfully!');
+        } else if (result.type === 'failure') {
+          toast.error('Failed to update portfolio. Please try again.');
         }
       };
     }}>
@@ -187,22 +190,22 @@
       
       <div class="form-group">
         <label for="edit-title">Title</label>
-        <input type="text" id="edit-title" name="title" value={editingPortfolio.title} required />
+        <input type="text" id="edit-title" name="title" value={editingPortfolio.title} required oninput={checkForChanges} />
       </div>
       
       <div class="form-group">
         <label for="edit-description">Description</label>
-        <textarea id="edit-description" name="description" required>{editingPortfolio.description}</textarea>
+        <textarea id="edit-description" name="description" required oninput={checkForChanges}>{editingPortfolio.description}</textarea>
       </div>
       
       <div class="form-group">
         <label for="edit-url">URL</label>
-        <input type="url" id="edit-url" name="url" value={editingPortfolio.url} required />
+        <input type="url" id="edit-url" name="url" value={editingPortfolio.url} required oninput={checkForChanges} />
       </div>
       
       <div class="form-group">
         <label for="edit-user">Creator</label>
-        <select id="edit-user" name="userId" required>
+        <select id="edit-user" name="userId" required onchange={checkForChanges}>
           <option value="">Select a creator</option>
           {#each data.users as user}
             <option value={user.id} selected={user.id === editingPortfolio.userId}>{user.name}</option>
@@ -212,7 +215,7 @@
       
       <div class="form-group">
         <label for="edit-category">Category</label>
-        <select id="edit-category" name="categoryId" required>
+        <select id="edit-category" name="categoryId" required onchange={checkForChanges}>
           <option value="">Select a category</option>
           {#each data.categories as category}
             <option value={category.id} selected={category.id === editingPortfolio.categoryId}>{category.category}</option>
@@ -222,7 +225,7 @@
       
       <div class="dialog-actions">
         <button type="button" class="button secondary" onclick={closeDialogs}>Cancel</button>
-        <button type="submit" class="button">Update Portfolio</button>
+        <button type="submit" class="button" disabled={!hasChanges}>Update Portfolio</button>
       </div>
     </form>
   {/if}
@@ -240,6 +243,9 @@
         if (result.type === 'success') {
           closeDialogs();
           await invalidateAll();
+          toast.success('Portfolio deleted successfully!');
+        } else if (result.type === 'failure') {
+          toast.error('Failed to delete portfolio. Please try again.');
         }
       };
     }}>
