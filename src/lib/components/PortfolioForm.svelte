@@ -23,19 +23,19 @@
   let originalFormData = $state({});
   let initialized = $state(false);
   
-  // Initialize form data when portfolio changes
+  // Initialize form data when portfolio or mode changes
   $effect(() => {
-    if ((mode === 'edit' || mode === 'view') && portfolio && !initialized) {
+    if ((mode === 'edit' || mode === 'view') && portfolio) {
       originalFormData = {
-        title: portfolio.title,
-        description: portfolio.description,
-        url: portfolio.url,
-        userId: portfolio.userId,
-        categoryId: portfolio.categoryId
+        title: portfolio.title || '',
+        description: portfolio.description || '',
+        url: portfolio.url || '',
+        userId: portfolio.userId || '',
+        categoryId: portfolio.categoryId || ''
       };
       formData = { ...originalFormData };
       initialized = true;
-    } else if (mode === 'create' && !initialized) {
+    } else if (mode === 'create') {
       formData = {
         title: '',
         description: '',
@@ -98,11 +98,6 @@
     }
     updateFormState();
   }
-  
-  // Reset initialization when mode or portfolio changes
-  $effect(() => {
-    initialized = false;
-  });
   
   // Computed properties
   let submitButtonText = $derived(mode === 'create' ? 'Create Portfolio' : 'Update Portfolio');
