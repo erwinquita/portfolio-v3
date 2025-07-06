@@ -2,75 +2,111 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
+  import Dialog from '$lib/components/Dialog.svelte';
+  import PortfolioForm from '$lib/components/PortfolioForm.svelte';
   
   let { data } = $props();
   
-  let createDialog = $state(null);
-  let editDialog = $state(null);
-  let deleteDialog = $state(null);
+  // Dialog state
+  let portfolioDialog = $state(false);
+  let deleteDialog = $state(false);
   
-  let editingPortfolio = $state(null);
+  // Portfolio state
+  let currentPortfolio = $state(null);
   let deletingPortfolio = $state(null);
+  let portfolioMode = $state('create'); // 'create', 'edit', or 'view'
   
-  let isEditing = $state(false);
-  let originalFormData = $state({});
-  let hasChanges = $state(false);
+  // Form state
+  let formChanges = $state(false);
+  let formDisabled = $state(true);
   
   function openCreateDialog() {
-    createDialog?.showModal();
+    currentPortfolio = null;
+    portfolioMode = 'create';
+    portfolioDialog = true;
   }
   
   function openEditDialog(portfolio) {
-    editingPortfolio = portfolio;
-    originalFormData = {
-      title: portfolio.title,
-      description: portfolio.description,
-      url: portfolio.url,
-      userId: portfolio.userId,
-      categoryId: portfolio.categoryId
-    };
-    isEditing = false;
-    hasChanges = false;
-    editDialog?.showModal();
+    currentPortfolio = portfolio;
+    portfolioMode = 'edit';
+    portfolioDialog = true;
+  }
+  
+  function openViewDialog(portfolio) {
+    currentPortfolio = portfolio;
+    portfolioMode = 'view';
+    portfolioDialog = true;
   }
   
   function openDeleteDialog(portfolio) {
     deletingPortfolio = portfolio;
-    deleteDialog?.showModal();
+    deleteDialog = true;
   }
   
   function closeDialogs() {
-    createDialog?.close();
-    editDialog?.close();
-    deleteDialog?.close();
-    editingPortfolio = null;
+    portfolioDialog = false;
+    deleteDialog = false;
+    currentPortfolio = null;
     deletingPortfolio = null;
-    isEditing = false;
-    originalFormData = {};
-    hasChanges = false;
+    formChanges = false;
+    formDisabled = true;
+    portfolioMode = 'create';
   }
   
-  function checkForChanges(event) {
-    const formData = new FormData(event.target.form);
-    const currentData = {
-      title: formData.get('title'),
-      description: formData.get('description'),
-      url: formData.get('url'),
-      userId: parseInt(formData.get('userId')),
-      categoryId: parseInt(formData.get('categoryId'))
-    };
+  function handleEditFromView(portfolio) {
+    // Switch from view mode to edit mode
+    portfolioMode = 'edit';
+    currentPortfolio = portfolio;
+  }
+  
+  async function handleCreateSubmit(formData, formDataObj) {
+    const response = await fetch('?/create', {
+      method: 'POST',
+      body: formData
+    });
     
-    hasChanges = Object.keys(originalFormData).some(key => 
-      originalFormData[key] !== currentData[key]
-    );
-  }
-  
-  function handleEditSubmit(event) {
-    if (!hasChanges) {
-      event.preventDefault();
-      return;
+    const result = await response.json();
+    
+    if (response.ok) {
+      closeDialogs();
+      await invalidateAll();
+      toast.success('Portfolio created successfully!');
+    } else {
+      toast.error('Failed to create portfolio. Please try again.');
     }
   }
+  
+  async function handleEditSubmit(formData, formDataObj) {
+    const response = await fetch('?/update', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      closeDialogs();
+      await invalidateAll();
+      toast.success('Portfolio updated successfully!');
+    } else {
+      toast.error('Failed to update portfolio. Please try again.');
+    }
+  }
+  
+  function handlePortfolioSubmit(formData, formDataObj) {
+    if (portfolioMode === 'create') {
+      return handleCreateSubmit(formData, formDataObj);
+    } else if (portfolioMode === 'edit') {
+      return handleEditSubmit(formData, formDataObj);
+    }
+  }
+  
+  // Computed properties for dialog title
+  let dialogTitle = $derived(
+    portfolioMode === 'create' ? 'Add New Portfolio' :
+    portfolioMode === 'edit' ? 'Edit Portfolio' :
+    'Portfolio Details'
+  );
 </script>
 
 <svelte:head>
@@ -104,6 +140,7 @@
             <td>{portfolio.user?.name || 'Unknown'}</td>
             <td><a href={portfolio.url} target="_blank" rel="noopener noreferrer">View</a></td>
             <td class="table-actions">
+              <button class="button secondary" onclick={() => openViewDialog(portfolio)}>View Details</button>
               <button class="button secondary" onclick={() => openEditDialog(portfolio)}>Edit</button>
               <button class="button danger" onclick={() => openDeleteDialog(portfolio)}>Delete</button>
             </td>
@@ -114,126 +151,23 @@
   {/if}
 </div>
 
-<!-- Create Portfolio Dialog -->
-<dialog bind:this={createDialog}>
-  <h2>Add New Portfolio</h2>
-  <form method="POST" action="?/create" use:enhance={() => {
-    return async ({ result }) => {
-      if (result.type === 'success') {
-        closeDialogs();
-        await invalidateAll();
-        toast.success('Portfolio created successfully!');
-      } else if (result.type === 'failure') {
-        toast.error('Failed to create portfolio. Please try again.');
-      }
-    };
-  }}>
-    <div class="form-group">
-      <label for="create-title">Title</label>
-      <input type="text" id="create-title" name="title" required />
-    </div>
-    
-    <div class="form-group">
-      <label for="create-description">Description</label>
-      <textarea id="create-description" name="description" required></textarea>
-    </div>
-    
-    <div class="form-group">
-      <label for="create-url">URL</label>
-      <input type="url" id="create-url" name="url" required />
-    </div>
-   
-				<!-- edit update to default logged in user when auth is added -->
-    <div class="form-group">
-      <label for="create-user">Creator</label>
-      <select id="create-user" name="userId" required>
-        <option value="">Select a creator</option>
-        {#each data.user as user}
-          <option value={user.id}>{user.name}</option>
-        {/each}
-      </select>
-    </div>
-    
-    <div class="form-group">
-      <label for="create-category">Category</label>
-      <select id="create-category" name="categoryId" required>
-        <option value="">Select a category</option>
-        {#each data.categories as category}
-          <option value={category.id}>{category.category}</option>
-        {/each}
-      </select>
-    </div>
-    
-    <div class="dialog-actions">
-      <button type="button" class="button secondary" onclick={closeDialogs}>Cancel</button>
-      <button type="submit" class="button">Create Portfolio</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Edit Portfolio Dialog -->
-<dialog bind:this={editDialog}>
-  <h2>Edit Portfolio</h2>
-  {#if editingPortfolio}
-    <form method="POST" action="?/update" onsubmit={handleEditSubmit} use:enhance={() => {
-      return async ({ result }) => {
-        if (result.type === 'success') {
-          closeDialogs();
-          await invalidateAll();
-          toast.success('Portfolio updated successfully!');
-        } else if (result.type === 'failure') {
-          toast.error('Failed to update portfolio. Please try again.');
-        }
-      };
-    }}>
-      <input type="hidden" name="id" value={editingPortfolio.id} />
-      
-      <div class="form-group">
-        <label for="edit-title">Title</label>
-        <input type="text" id="edit-title" name="title" value={editingPortfolio.title} required oninput={checkForChanges} />
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-description">Description</label>
-        <textarea id="edit-description" name="description" required oninput={checkForChanges}>{editingPortfolio.description}</textarea>
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-url">URL</label>
-        <input type="url" id="edit-url" name="url" value={editingPortfolio.url} required oninput={checkForChanges} />
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-user">Creator</label>
-        <select id="edit-user" name="userId" required onchange={checkForChanges}>
-          <option value="">Select a creator</option>
-          {#each data.user as user}
-            <option value={user.id} selected={user.id === editingPortfolio.userId}>{user.name}</option>
-          {/each}
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="edit-category">Category</label>
-        <select id="edit-category" name="categoryId" required onchange={checkForChanges}>
-          <option value="">Select a category</option>
-          {#each data.categories as category}
-            <option value={category.id} selected={category.id === editingPortfolio.categoryId}>{category.category}</option>
-          {/each}
-        </select>
-      </div>
-      
-      <div class="dialog-actions">
-        <button type="button" class="button secondary" onclick={closeDialogs}>Cancel</button>
-        <button type="submit" class="button" disabled={!hasChanges}>Update Portfolio</button>
-      </div>
-    </form>
-  {/if}
-</dialog>
+<!-- Portfolio Dialog (Create/Edit/View) -->
+<Dialog title={dialogTitle} bind:isOpen={portfolioDialog} onClose={closeDialogs}>
+  <PortfolioForm
+    mode={portfolioMode}
+    portfolio={currentPortfolio}
+    users={data.user}
+    categories={data.categories}
+    onSubmit={handlePortfolioSubmit}
+    onCancel={closeDialogs}
+    onEdit={handleEditFromView}
+    bind:hasChanges={formChanges}
+    bind:submitDisabled={formDisabled}
+  />
+</Dialog>
 
 <!-- Delete Portfolio Dialog -->
-<dialog bind:this={deleteDialog}>
-  <h2>Delete Portfolio</h2>
+<Dialog title="Delete Portfolio" bind:isOpen={deleteDialog} onClose={closeDialogs}>
   {#if deletingPortfolio}
     <p>Are you sure you want to delete "<strong>{deletingPortfolio.title}</strong>"?</p>
     <p>This action cannot be undone.</p>
@@ -257,4 +191,5 @@
       </div>
     </form>
   {/if}
-</dialog>
+</Dialog>
+

@@ -1,211 +1,372 @@
 <script>
- import { toast } from 'svelte-easy-toast';
+  let {
+    portfolio = null,
+    users = [],
+    categories = [],
+    mode = 'create', // 'create', 'edit', or 'view'
+    onSubmit = () => {},
+    onCancel = () => {},
+    onEdit = () => {}, // New prop for switching to edit mode from view
+    hasChanges = $bindable(false),
+    submitDisabled = $bindable(false)
+  } = $props();
   
-  let { user, categories, portfolio = null, onSubmit, onCancel } = $props();
-  
+  // Form data state
   let formData = $state({
-    title: portfolio?.title || '',
-    description: portfolio?.description || '',
-    url: portfolio?.url || '',
-    userId: portfolio?.userId || '',
-    categoryId: portfolio?.categoryId || ''
+    title: '',
+    description: '',
+    url: '',
+    userId: '',
+    categoryId: ''
   });
   
-  let originalData = $state({
-    title: portfolio?.title || '',
-    description: portfolio?.description || '',
-    url: portfolio?.url || '',
-    userId: portfolio?.userId || '',
-    categoryId: portfolio?.categoryId || ''
+  let originalFormData = $state({});
+  let initialized = $state(false);
+  
+  // Initialize form data when portfolio changes
+  $effect(() => {
+    if ((mode === 'edit' || mode === 'view') && portfolio && !initialized) {
+      originalFormData = {
+        title: portfolio.title,
+        description: portfolio.description,
+        url: portfolio.url,
+        userId: portfolio.userId,
+        categoryId: portfolio.categoryId
+      };
+      formData = { ...originalFormData };
+      initialized = true;
+    } else if (mode === 'create' && !initialized) {
+      formData = {
+        title: '',
+        description: '',
+        url: '',
+        userId: '',
+        categoryId: ''
+      };
+      originalFormData = {};
+      initialized = true;
+    }
   });
   
-  let loading = $state(false);
-  let errors = $state({});
-  
-  function validateForm() {
-    const newErrors = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
-    
-    if (!formData.url.trim()) {
-      newErrors.url = 'URL is required';
-    } else if (!isValidUrl(formData.url)) {
-      newErrors.url = 'Please enter a valid URL';
-    }
-    
-    if (!formData.userId) {
-      newErrors.userId = 'User is required';
-    }
-    
-    if (!formData.categoryId) {
-      newErrors.categoryId = 'Category is required';
-    }
-    
-    errors = newErrors;
-    return Object.keys(newErrors).length === 0;
-  }
-  
-  function isValidUrl(string) {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
+  // Update hasChanges and submitDisabled when form data changes
+  function updateFormState() {
+    if (mode === 'edit' && initialized) {
+      const changes = Object.keys(originalFormData).some(key => 
+        originalFormData[key] !== formData[key]
+      );
+      hasChanges = changes;
+      submitDisabled = !changes;
+    } else if (mode === 'create') {
+      // For create mode, check if required fields are filled
+      const requiredFields = ['title', 'description', 'url', 'userId', 'categoryId'];
+      const allFieldsFilled = requiredFields.every(field => 
+        formData[field] && formData[field].toString().trim() !== ''
+      );
+      hasChanges = allFieldsFilled;
+      submitDisabled = !allFieldsFilled;
     }
   }
   
-  function hasChanges() {
-    return JSON.stringify(formData) !== JSON.stringify(originalData);
-  }
-  
-  async function handleSubmit() {
-    if (!validateForm()) {
-      toast.error('Please fix the errors in the form');
+  function handleSubmit(event) {
+    event.preventDefault();
+    
+    if (mode === 'edit' && !hasChanges) {
       return;
     }
     
-    if (portfolio && !hasChanges()) {
-      toast.info('No changes detected');
-      return;
-    }
+    const form = event.target;
+    const formDataObj = new FormData(form);
     
-    loading = true;
-    try {
-      await onSubmit(formData);
-    } finally {
-      loading = false;
-    }
+    onSubmit(formDataObj, formData);
   }
   
-  function handleCancel() {
-    if (portfolio && hasChanges()) {
-      if (!confirm('You have unsaved changes. Are you sure you want to cancel?')) {
-        return;
-      }
+  function handleInputChange() {
+    updateFormState();
+  }
+  
+  function resetForm() {
+    if ((mode === 'edit' || mode === 'view') && portfolio) {
+      formData = { ...originalFormData };
+    } else {
+      formData = {
+        title: '',
+        description: '',
+        url: '',
+        userId: '',
+        categoryId: ''
+      };
     }
-    onCancel();
+    updateFormState();
+  }
+  
+  // Reset initialization when mode or portfolio changes
+  $effect(() => {
+    initialized = false;
+  });
+  
+  // Computed properties
+  let submitButtonText = $derived(mode === 'create' ? 'Create Portfolio' : 'Update Portfolio');
+  let formTitle = $derived(
+    mode === 'create' ? 'Add New Portfolio' : 
+    mode === 'edit' ? 'Edit Portfolio' : 
+    'Portfolio Details'
+  );
+  
+  // Helper functions for view mode
+  function getUserName(userId) {
+    const user = users.find(u => u.id === userId);
+    return user ? user.name : 'Unknown';
+  }
+  
+  function getCategoryName(categoryId) {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.category : 'Uncategorized';
   }
 </script>
 
-<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-  <div class="form-group">
-    <label for="title" class="form-label">Title *</label>
-    <input
-      type="text"
-      id="title"
-      class="form-input"
-      class:error={errors.title}
-      bind:value={formData.title}
-      placeholder="Enter portfolio title"
-      required
-    />
-    {#if errors.title}
-      <div style="color: var(--red-5); font-size: var(--font-size-0); margin-top: var(--size-1);">
-        {errors.title}
+<div class="portfolio-form">
+  {#if mode === 'view'}
+    <!-- View Mode -->
+    <div class="portfolio-details">
+      <div class="detail-row">
+        <strong>Title:</strong>
+        <span>{portfolio.title}</span>
       </div>
-    {/if}
-  </div>
-  
-  <div class="form-group">
-    <label for="description" class="form-label">Description *</label>
-    <textarea
-      id="description"
-      class="form-input form-textarea"
-      class:error={errors.description}
-      bind:value={formData.description}
-      placeholder="Enter portfolio description"
-      required
-    ></textarea>
-    {#if errors.description}
-      <div style="color: var(--red-5); font-size: var(--font-size-0); margin-top: var(--size-1);">
-        {errors.description}
+      
+      <div class="detail-row">
+        <strong>Category:</strong>
+        <span>{getCategoryName(portfolio.categoryId)}</span>
       </div>
-    {/if}
-  </div>
-  
-  <div class="form-group">
-    <label for="url" class="form-label">URL *</label>
-    <input
-      type="url"
-      id="url"
-      class="form-input"
-      class:error={errors.url}
-      bind:value={formData.url}
-      placeholder="https://example.com"
-      required
-    />
-    {#if errors.url}
-      <div style="color: var(--red-5); font-size: var(--font-size-0); margin-top: var(--size-1);">
-        {errors.url}
+      
+      <div class="detail-row">
+        <strong>Creator:</strong>
+        <span>{getUserName(portfolio.userId)}</span>
       </div>
-    {/if}
-  </div>
-  
-  <div class="form-group">
-    <label for="userId" class="form-label">User *</label>
-    <select
-      id="userId"
-      class="form-input"
-      class:error={errors.userId}
-      bind:value={formData.userId}
-      required
-    >
-      <option value="">Select a user</option>
-      {#each user as user}
-        <option value={user.id}>{user.name} ({user.email})</option>
-      {/each}
-    </select>
-    {#if errors.userId}
-      <div style="color: var(--red-5); font-size: var(--font-size-0); margin-top: var(--size-1);">
-        {errors.userId}
+      
+      <div class="detail-row">
+        <strong>URL:</strong>
+        <a href={portfolio.url} target="_blank" rel="noopener noreferrer">{portfolio.url}</a>
       </div>
-    {/if}
-  </div>
-  
-  <div class="form-group">
-    <label for="categoryId" class="form-label">Category *</label>
-    <select
-      id="categoryId"
-      class="form-input"
-      class:error={errors.categoryId}
-      bind:value={formData.categoryId}
-      required
-    >
-      <option value="">Select a category</option>
-      {#each categories as category}
-        <option value={category.id}>{category.category}</option>
-      {/each}
-    </select>
-    {#if errors.categoryId}
-      <div style="color: var(--red-5); font-size: var(--font-size-0); margin-top: var(--size-1);">
-        {errors.categoryId}
+      
+      <div class="detail-row">
+        <strong>Description:</strong>
+        <p class="description">{portfolio.description}</p>
       </div>
-    {/if}
-  </div>
-  
-  <div class="dialog-footer">
-    <button type="button" class="btn" onclick={handleCancel} disabled={loading}>
-      Cancel
-    </button>
-    <button type="submit" class="btn btn-primary" disabled={loading} class:loading>
-      {loading ? 'Saving...' : portfolio ? 'Update' : 'Create'}
-    </button>
-  </div>
-</form>
+      
+      {#if portfolio.createdAt}
+        <div class="detail-row">
+          <strong>Created:</strong>
+          <span>{new Date(portfolio.createdAt).toLocaleDateString()}</span>
+        </div>
+      {/if}
+      
+      {#if portfolio.updatedAt}
+        <div class="detail-row">
+          <strong>Last Updated:</strong>
+          <span>{new Date(portfolio.updatedAt).toLocaleDateString()}</span>
+        </div>
+      {/if}
+    </div>
+    
+    <div class="form-actions">
+      <button type="button" class="button secondary" onclick={onCancel}>
+        Close
+      </button>
+      <button type="button" class="button" onclick={() => onEdit(portfolio)}>
+        Edit
+      </button>
+    </div>
+  {:else}
+    <!-- Create/Edit Mode -->
+    <form onsubmit={handleSubmit}>
+      {#if mode === 'edit' && portfolio}
+        <input type="hidden" name="id" value={portfolio.id} />
+      {/if}
+      
+      <div class="form-group">
+        <label for="portfolio-title">Title</label>
+        <input 
+          type="text" 
+          id="portfolio-title" 
+          name="title" 
+          bind:value={formData.title}
+          oninput={handleInputChange}
+          required 
+          placeholder="Enter portfolio title"
+        />
+      </div>
+      
+      <div class="form-group">
+        <label for="portfolio-description">Description</label>
+        <textarea 
+          id="portfolio-description" 
+          name="description" 
+          bind:value={formData.description}
+          oninput={handleInputChange}
+          required 
+          placeholder="Enter portfolio description"
+          rows="4"
+        ></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="portfolio-url">URL</label>
+        <input 
+          type="url" 
+          id="portfolio-url" 
+          name="url" 
+          bind:value={formData.url}
+          oninput={handleInputChange}
+          required 
+          placeholder="https://example.com"
+        />
+      </div>
+      
+      <div class="form-group">
+        <label for="portfolio-user">Creator</label>
+        <select 
+          id="portfolio-user" 
+          name="userId" 
+          bind:value={formData.userId}
+          onchange={handleInputChange}
+          required
+        >
+          <option value="">Select a creator</option>
+          {#each users as user}
+            <option value={user.id}>{user.name}</option>
+          {/each}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="portfolio-category">Category</label>
+        <select 
+          id="portfolio-category" 
+          name="categoryId" 
+          bind:value={formData.categoryId}
+          onchange={handleInputChange}
+          required
+        >
+          <option value="">Select a category</option>
+          {#each categories as category}
+            <option value={category.id}>{category.category}</option>
+          {/each}
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="button secondary" onclick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" class="button secondary" onclick={resetForm}>
+          Reset
+        </button>
+        <button type="submit" class="button" disabled={submitDisabled}>
+          {submitButtonText}
+        </button>
+      </div>
+    </form>
+  {/if}
+</div>
 
 <style>
-  .form-input.error {
-    border-color: var(--red-5);
+  .portfolio-form {
+    width: 100%;
   }
   
-  .form-input.error:focus {
-    border-color: var(--red-5);
-    box-shadow: 0 0 0 var(--border-size-2) var(--red-5);
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #374151;
+  }
+  
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  .form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+  
+  .form-group input::placeholder,
+  .form-group textarea::placeholder {
+    color: #9ca3af;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  
+  /* View mode styles */
+  .portfolio-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .detail-row strong {
+    font-weight: 600;
+    color: #374151;
+  }
+  
+  .detail-row span,
+  .detail-row a {
+    color: #6b7280;
+  }
+  
+  .detail-row a {
+    text-decoration: underline;
+    color: #3b82f6;
+  }
+  
+  .detail-row a:hover {
+    color: #2563eb;
+  }
+  
+  .description {
+    margin: 0;
+    line-height: 1.6;
+    color: #6b7280;
   }
 </style>
