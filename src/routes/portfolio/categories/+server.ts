@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { categories } from '$lib/server/db/schema';
+import { db } from '$lib/db/server';
+import { categories } from '$lib/db/server/schema';
 import { asc } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 

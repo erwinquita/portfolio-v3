@@ -1,5 +1,5 @@
-import { db } from '$lib/server/db';
-import { portfolios, users, categories } from '$lib/server/db/schema';
+import { db } from '$lib/db/server';
+import { portfolios, user, categories } from '$lib/db/server/schema';
 import { eq } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 
@@ -14,9 +14,9 @@ export async function load() {
         userId: portfolios.userId,
         categoryId: portfolios.categoryId,
         user: {
-          id: users.id,
-          name: users.name,
-          email: users.email
+          id: user.id,
+          name: user.name,
+          email: user.email
         },
         category: {
           id: categories.id,
@@ -24,16 +24,16 @@ export async function load() {
         }
       })
       .from(portfolios)
-      .leftJoin(users, eq(portfolios.userId, users.id))
+      .leftJoin(user, eq(portfolios.userId, user.id))
       .leftJoin(categories, eq(portfolios.categoryId, categories.id)),
     
-    db.select().from(users),
+    db.select().from(user),
     db.select().from(categories)
   ]);
 
   return {
     portfolios: portfolioData,
-    users: usersData,
+    user: usersData,
     categories: categoriesData
   };
 }

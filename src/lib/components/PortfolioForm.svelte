@@ -1,7 +1,7 @@
 <script>
  import { toast } from 'svelte-easy-toast';
   
-  let { users, categories, portfolio = null, onSubmit, onCancel } = $props();
+  let { user, categories, portfolio = null, onSubmit, onCancel } = $props();
   
   let formData = $state({
     title: portfolio?.title || '',
@@ -157,7 +157,7 @@
       required
     >
       <option value="">Select a user</option>
-      {#each users as user}
+      {#each user as user}
         <option value={user.id}>{user.name} ({user.email})</option>
       {/each}
     </select>

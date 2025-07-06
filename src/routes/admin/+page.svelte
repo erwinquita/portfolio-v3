@@ -148,7 +148,7 @@
       <label for="create-user">Creator</label>
       <select id="create-user" name="userId" required>
         <option value="">Select a creator</option>
-        {#each data.users as user}
+        {#each data.user as user}
           <option value={user.id}>{user.name}</option>
         {/each}
       </select>
@@ -207,7 +207,7 @@
         <label for="edit-user">Creator</label>
         <select id="edit-user" name="userId" required onchange={checkForChanges}>
           <option value="">Select a creator</option>
-          {#each data.users as user}
+          {#each data.user as user}
             <option value={user.id} selected={user.id === editingPortfolio.userId}>{user.name}</option>
           {/each}
         </select>

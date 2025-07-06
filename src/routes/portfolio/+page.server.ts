@@ -1,5 +1,5 @@
-import { db } from '$lib/server/db';
-import { portfolios, users, categories } from '$lib/server/db/schema';
+import { db } from '$lib/db/server';
+import { portfolios, user, categories } from '$lib/db/server/schema';
 import { eq } from 'drizzle-orm';
 
 export async function load() {
@@ -11,9 +11,9 @@ export async function load() {
         description: portfolios.description,
         url: portfolios.projectUrl,
         user: {
-          id: users.id,
-          name: users.name,
-          email: users.email
+          id: user.id,
+          name: user.name,
+          email: user.email
         },
         category: {
           id: categories.id,
@@ -21,7 +21,7 @@ export async function load() {
         }
       })
       .from(portfolios)
-      .leftJoin(users, eq(portfolios.userId, users.id))
+      .leftJoin(user, eq(portfolios.userId, user.id))
       .leftJoin(categories, eq(portfolios.categoryId, categories.id)),
     
     db.select().from(categories)

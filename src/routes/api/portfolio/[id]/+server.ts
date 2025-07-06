@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { portfolios, users, categories } from '$lib/server/db/schema';
+import { db } from '$lib/db/server';
+import { portfolios, user, categories } from '$lib/db/server/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET({ params }) {
@@ -20,9 +20,9 @@ export async function GET({ params }) {
         userId: portfolios.userId,
         categoryId: portfolios.categoryId,
         user: {
-          id: users.id,
-          name: users.name,
-          email: users.email
+          id: user.id,
+          name: user.name,
+          email: user.email
         },
         category: {
           id: categories.id,
@@ -30,7 +30,7 @@ export async function GET({ params }) {
         }
       })
       .from(portfolios)
-      .leftJoin(users, eq(portfolios.userId, users.id))
+      .leftJoin(user, eq(portfolios.userId, user.id))
       .leftJoin(categories, eq(portfolios.categoryId, categories.id))
       .where(eq(portfolios.id, id));
 

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f943168c-d589-4f05-acbe-87ad5ce7f1e1",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "17e4cc88-d638-43f0-9f32-0878972d0766",
+  "prevId": "f943168c-d589-4f05-acbe-87ad5ce7f1e1",
   "tables": {
     "categories": {
       "name": "categories",
@@ -203,7 +203,9 @@
   "enums": {},
   "_meta": {
     "schemas": {},
-    "tables": {},
+    "tables": {
+      "\"users\"": "\"user\""
+    },
     "columns": {}
   },
   "internal": {

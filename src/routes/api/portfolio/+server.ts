@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { portfolios, users, categories } from '$lib/server/db/schema';
+import { db } from '$lib//db/server';
+import { portfolios, user, categories } from '$lib/db/server/schema';
 import { eq, like, and, desc, count } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const totalCountQuery = db
       .select({ count: count() })
       .from(portfolios)
-      .innerJoin(users, eq(portfolios.userId, users.id))
+      .innerJoin(user, eq(portfolios.userId, user.id))
       .innerJoin(categories, eq(portfolios.categoryId, categories.id));
     
     if (conditions.length > 0) {
@@ -47,12 +47,12 @@ export const GET: RequestHandler = async ({ url }) => {
         userId: portfolios.userId,
         categoryId: portfolios.categoryId,
         createdAt: portfolios.createdAt,
-        userName: users.name,
-        userEmail: users.email,
+        userName: user.name,
+        userEmail: user.email,
         category: categories.category,
       })
       .from(portfolios)
-      .innerJoin(users, eq(portfolios.userId, users.id))
+      .innerJoin(user, eq(portfolios.userId, user.id))
       .innerJoin(categories, eq(portfolios.categoryId, categories.id))
       .orderBy(desc(portfolios.createdAt))
       .limit(limit)
