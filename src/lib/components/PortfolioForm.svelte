@@ -21,36 +21,46 @@
   });
   
   let originalFormData = $state({});
-  let initialized = $state(false);
+  let lastPortfolioId = $state(null);
+  let lastMode = $state(null);
   
   // Initialize form data when portfolio or mode changes
   $effect(() => {
-    if ((mode === 'edit' || mode === 'view') && portfolio) {
-      originalFormData = {
-        title: portfolio.title || '',
-        description: portfolio.description || '',
-        url: portfolio.url || '',
-        userId: portfolio.userId || '',
-        categoryId: portfolio.categoryId || ''
-      };
-      formData = { ...originalFormData };
-      initialized = true;
-    } else if (mode === 'create') {
-      formData = {
-        title: '',
-        description: '',
-        url: '',
-        userId: '',
-        categoryId: ''
-      };
-      originalFormData = {};
-      initialized = true;
+    const currentPortfolioId = portfolio?.id || null;
+    
+    // Only reinitialize if portfolio ID or mode actually changed
+    if (currentPortfolioId !== lastPortfolioId || mode !== lastMode) {
+      if ((mode === 'edit' || mode === 'view') && portfolio) {
+        originalFormData = {
+          title: portfolio.title || '',
+          description: portfolio.description || '',
+          url: portfolio.url || '',
+          userId: portfolio.userId || '',
+          categoryId: portfolio.categoryId || ''
+        };
+        formData = { ...originalFormData };
+      } else if (mode === 'create') {
+        formData = {
+          title: '',
+          description: '',
+          url: '',
+          userId: '',
+          categoryId: ''
+        };
+        originalFormData = {};
+      }
+      
+      lastPortfolioId = currentPortfolioId;
+      lastMode = mode;
+      
+      // Update form state after initialization
+      updateFormState();
     }
   });
   
   // Update hasChanges and submitDisabled when form data changes
   function updateFormState() {
-    if (mode === 'edit' && initialized) {
+    if (mode === 'edit' && Object.keys(originalFormData).length > 0) {
       const changes = Object.keys(originalFormData).some(key => 
         originalFormData[key] !== formData[key]
       );
