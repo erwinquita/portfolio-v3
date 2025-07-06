@@ -1,15 +1,18 @@
 import { db } from '$lib/db/server';
 import { portfolios, user, categories } from '$lib/db/server/schema';
 import { eq } from 'drizzle-orm';
+import { fail } from '@sveltejs/kit';
 
 export async function load() {
-  const [portfolioData, categoriesData] = await Promise.all([
+  const [portfolioData, usersData, categoriesData] = await Promise.all([
     db
       .select({
         id: portfolios.id,
         title: portfolios.title,
         description: portfolios.description,
         url: portfolios.projectUrl,
+        userId: portfolios.userId,
+        categoryId: portfolios.categoryId,
         user: {
           id: user.id,
           name: user.name,
@@ -24,6 +27,7 @@ export async function load() {
       .leftJoin(user, eq(portfolios.userId, user.id))
       .leftJoin(categories, eq(portfolios.categoryId, categories.id)),
     
+    db.select().from(user),
     db.select().from(categories)
   ]);
 
@@ -32,3 +36,4 @@ export async function load() {
     categories: categoriesData
   };
 }
+

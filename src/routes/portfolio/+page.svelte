@@ -12,8 +12,11 @@
 
   let { data } = $props();
   
-  
   const ITEMS_PER_PAGE = 6;
+  
+  // Reactive computed values for button states
+  let isSearchDisabled = $derived(!searchQuery.trim() && !selectedCategory);
+  let isResetDisabled = $derived(!searchQuery.trim() && !selectedCategory);
   
   async function fetchPortfolios() {
     loading = true;
@@ -22,7 +25,7 @@
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
         ...(selectedCategory && { category: selectedCategory }),
-        ...(searchQuery && { search: searchQuery })
+        ...(searchQuery.trim() && { search: searchQuery.trim() })
       });
       
       const response = await fetch(`/api/portfolio?${params}`);
@@ -40,11 +43,20 @@
   
   async function fetchCategories() {
     try {
-						let selectedCategory = $state('all');
-      const response = await fetch('/api/portfolio/categories');
+      // Try the categories endpoint first
+      let response = await fetch('/api/portfolio/categories');
+      
+      // If that fails, try getting categories from the main endpoint
+      if (!response.ok) {
+        console.log('Categories endpoint failed, trying alternative method');
+        response = await fetch('/api/portfolio?categories=true');
+      }
+      
       if (response.ok) {
         const data = await response.json();
-        categories = data.categories;
+        categories = data.categories || [];
+      } else {
+        console.error('Failed to fetch categories:', await response.text());
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -62,13 +74,28 @@
   }
   
   function handleSearch() {
+    if (isSearchDisabled) return;
     currentPage = 1;
     fetchPortfolios();
+  }
+  
+  function handleReset() {
+    if (isResetDisabled) return;
+    searchQuery = '';
+    selectedCategory = '';
+    currentPage = 1;
+    fetchPortfolios();
+  }
+  
+  function handleKeydown(e) {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   }
 
   onMount(() => {
     fetchPortfolios();
-    // fetchCategories();
+    fetchCategories();
   });
 </script>
 
@@ -86,26 +113,35 @@
           placeholder="Search portfolios..."
           class="form-input"
           bind:value={searchQuery}
-          onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+          onkeydown={handleKeydown}
         />
       </div>
-      <!-- <div class="form-group" style="margin-bottom: 0;"> -->
-						<!-- 		<label for="category-select">Choose Category</label> -->
-      <!--   <select -->
-					 <!--     name="category-select" -->
-						<!-- 				id="category-select" -->
-      <!--     class="form-input" -->
-      <!--     bind:value={selectedCategory} -->
-      <!--     onchange={handleCategoryChange} -->
-      <!--   > -->
-      <!--     <option value="">All Categories</option> -->
-      <!--     {#each categories as category} -->
-      <!--       <option value={category.category}>{category.category}</option> -->
-      <!--     {/each} -->
-      <!--   </select> -->
-      <!-- </div> -->
-      <button class="btn btn-primary" onclick={handleSearch}>Search</button>
-						<!-- <button class="button secondary" onclick={resetSearch}>Reset</button> -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <select
+          class="form-input"
+          bind:value={selectedCategory}
+          onchange={handleCategoryChange}
+        >
+          <option value="">All Categories</option>
+          {#each categories as category}
+            <option value={category.category}>{category.category}</option>
+          {/each}
+        </select>
+      </div>
+      <button 
+        class="btn btn-primary" 
+        onclick={handleSearch}
+        disabled={isSearchDisabled}
+      >
+        Search
+      </button>
+      <button 
+        class="btn btn-secondary" 
+        onclick={handleReset}
+        disabled={isResetDisabled}
+      >
+        Reset
+      </button>
     </div>
   </div>
   
