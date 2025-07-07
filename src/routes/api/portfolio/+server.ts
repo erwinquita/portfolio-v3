@@ -37,15 +37,11 @@ export async function GET({ url }) {
     }
     
     if (dateFrom) {
-      conditions.push(
-        sql`date(${portfolios.createdAt}) >= ${dateFrom}`
-      );
+      conditions.push(sql`${portfolios.createdAt} >= ${dateFrom}`);
     }
     
     if (dateTo) {
-      conditions.push(
-        sql`date(${portfolios.createdAt}) <= ${dateTo}`
-      );
+      conditions.push(sql`${portfolios.createdAt} <= ${dateTo || '9999-12-31'}`);
     }
     
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

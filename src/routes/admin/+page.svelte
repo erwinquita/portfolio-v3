@@ -34,8 +34,8 @@
         limit: ITEMS_PER_PAGE.toString(),
         ...(selectedCategory && { category: selectedCategory }),
         ...(searchQuery.trim() && { search: searchQuery.trim() }),
-        ...(dateFrom && { dateFrom: dateFrom }),
-        ...(dateTo && { dateTo: dateTo })
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo })
       });
       
       const response = await fetch(`/api/portfolio?${params}`);
@@ -257,49 +257,39 @@
   <!-- Search and Filter Controls -->
   <div class="search-controls">
     <div class="search-group">
-      <div class="input-group">
-        <label for="search-input" class="visually-hidden">Search portfolios</label>
-        <input
-          id="search-input"
-          type="text"
-          placeholder="Search portfolios..."
-          bind:value={searchQuery}
-          onkeydown={handleKeydown}
-          class="search-input"
-        />
-      </div>
-      <div class="input-group">
-        <label for="category-select" class="visually-hidden">Filter by category</label>
-        <select id="category-select" bind:value={selectedCategory} onchange={handleCategoryChange} class="category-select">
-          <option value="">All Categories</option>
-          {#each categories as category}
-            <option value={category.category}>{category.category}</option>
-          {/each}
-        </select>
-      </div>
+      <label for="search-input" class="visually-hidden">Search portfolios</label>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Search portfolios..."
+        bind:value={searchQuery}
+        onkeydown={handleKeydown}
+        class="search-input"
+      />
+      <label for="category-select" class="visually-hidden">Filter by category</label>
+      <select id="category-select" bind:value={selectedCategory} onchange={handleCategoryChange} class="category-select">
+        <option value="">All Categories</option>
+        {#each categories as category}
+          <option value={category.category}>{category.category}</option>
+        {/each}
+      </select>
     </div>
-    
-    <div class="date-range-group">
-      <div class="input-group">
-        <label for="date-from" class="date-label">From:</label>
-        <input
-          id="date-from"
-          type="date"
-          bind:value={dateFrom}
-          class="date-input"
-        />
-      </div>
-      <div class="input-group">
-        <label for="date-to" class="date-label">To:</label>
-        <input
-          id="date-to"
-          type="date"
-          bind:value={dateTo}
-          class="date-input"
-        />
-      </div>
+    <div class="date-group">
+      <label for="date-from" class="date-label">From:</label>
+      <input
+        id="date-from"
+        type="date"
+        bind:value={dateFrom}
+        class="date-input"
+      />
+      <label for="date-to" class="date-label">To:</label>
+      <input
+        id="date-to"
+        type="date"
+        bind:value={dateTo}
+        class="date-input"
+      />
     </div>
-    
     <div class="search-buttons">
       <button class="button secondary" onclick={handleSearch} disabled={isSearchDisabled}>
         Search
@@ -346,7 +336,7 @@
             <td>
               {#if getProjectUrl(portfolio)}
                 <a href={getProjectUrl(portfolio)} target="_blank" rel="noopener noreferrer" class="external-link">
-                  View Url
+                  View Project
                 </a>
               {:else}
                 <span class="text-muted">No URL</span>
@@ -420,7 +410,7 @@
     display: flex;
     gap: 1rem;
     margin-bottom: 1.5rem;
-    align-items: flex-end;
+    align-items: end;
     flex-wrap: wrap;
   }
   
@@ -431,16 +421,25 @@
     min-width: 300px;
   }
   
-  .date-range-group {
+  .date-group {
     display: flex;
     gap: 0.5rem;
-    align-items: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
   }
   
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+  .date-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    white-space: nowrap;
+  }
+  
+  .date-input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.875rem;
   }
   
   .search-input {
@@ -457,34 +456,21 @@
     min-width: 150px;
   }
   
-  .date-input {
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 140px;
-  }
-  
-  .date-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #333;
+  .search-buttons {
+    display: flex;
+    gap: 0.5rem;
   }
   
   .visually-hidden {
     position: absolute;
     width: 1px;
     height: 1px;
-    margin: -1px;
     padding: 0;
+    margin: -1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
-  }
-  
-  .search-buttons {
-    display: flex;
-    gap: 0.5rem;
   }
   
   .loading {
@@ -507,6 +493,21 @@
     font-weight: 500;
   }
   
+  .user-name {
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .external-link {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .external-link:hover {
+    text-decoration: underline;
+  }
+  
   @media (max-width: 768px) {
     .search-controls {
       flex-direction: column;
@@ -515,10 +516,9 @@
     
     .search-group {
       min-width: auto;
-      flex-direction: column;
     }
     
-    .date-range-group {
+    .date-group {
       justify-content: center;
     }
     

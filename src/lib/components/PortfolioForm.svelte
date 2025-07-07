@@ -8,7 +8,8 @@
     onCancel = () => {},
     onEdit = () => {}, // New prop for switching to edit mode from view
     hasChanges = $bindable(false),
-    submitDisabled = $bindable(false)
+    submitDisabled = $bindable(false),
+    resetDisabled = $bindable(false)
   } = $props();
   
   // Form data state
@@ -66,14 +67,22 @@
       );
       hasChanges = changes;
       submitDisabled = !changes;
+      resetDisabled = !changes;
     } else if (mode === 'create') {
-      // For create mode, check if required fields are filled
-      const requiredFields = ['title', 'description', 'url', 'userId', 'categoryId'];
-      const allFieldsFilled = requiredFields.every(field => 
+      // For create mode, check if required fields are filled (URL is not required)
+      const requiredFields = ['title', 'description', 'userId', 'categoryId'];
+      const allRequiredFieldsFilled = requiredFields.every(field => 
         formData[field] && formData[field].toString().trim() !== ''
       );
-      hasChanges = allFieldsFilled;
-      submitDisabled = !allFieldsFilled;
+      
+      // Check if any field has content for reset button
+      const hasAnyContent = Object.values(formData).some(value => 
+        value && value.toString().trim() !== ''
+      );
+      
+      hasChanges = allRequiredFieldsFilled;
+      submitDisabled = !allRequiredFieldsFilled;
+      resetDisabled = !hasAnyContent; // Enable reset if any field has content
     }
   }
   
@@ -150,7 +159,11 @@
       
       <div class="detail-row">
         <strong>URL:</strong>
-        <a href={portfolio.url} target="_blank" rel="noopener noreferrer">{portfolio.url}</a>
+        {#if portfolio.url}
+          <a href={portfolio.url} target="_blank" rel="noopener noreferrer">{portfolio.url}</a>
+        {:else}
+          <span>No URL provided</span>
+        {/if}
       </div>
       
       <div class="detail-row">
@@ -189,7 +202,7 @@
       {/if}
       
       <div class="form-group">
-        <label for="portfolio-title">Title</label>
+        <label for="portfolio-title">Title *</label>
         <input 
           type="text" 
           id="portfolio-title" 
@@ -202,7 +215,7 @@
       </div>
       
       <div class="form-group">
-        <label for="portfolio-description">Description</label>
+        <label for="portfolio-description">Description *</label>
         <textarea 
           id="portfolio-description" 
           name="description" 
@@ -222,13 +235,12 @@
           name="url" 
           bind:value={formData.url}
           oninput={handleInputChange}
-          required 
-          placeholder="https://example.com"
+          placeholder="https://example.com (optional)"
         />
       </div>
       
       <div class="form-group">
-        <label for="portfolio-user">Creator</label>
+        <label for="portfolio-user">Creator *</label>
         <select 
           id="portfolio-user" 
           name="userId" 
@@ -244,7 +256,7 @@
       </div>
       
       <div class="form-group">
-        <label for="portfolio-category">Category</label>
+        <label for="portfolio-category">Category *</label>
         <select 
           id="portfolio-category" 
           name="categoryId" 
@@ -263,7 +275,7 @@
         <button type="button" class="button secondary" onclick={onCancel}>
           Cancel
         </button>
-        <button type="button" class="button secondary" onclick={resetForm}>
+        <button type="button" class="button secondary" disabled={resetDisabled} onclick={resetForm}>
           Reset
         </button>
         <button type="submit" class="button" disabled={submitDisabled}>
@@ -375,3 +387,4 @@
     color: #6b7280;
   }
 </style>
+
