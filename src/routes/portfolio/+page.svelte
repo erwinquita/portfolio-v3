@@ -179,7 +179,7 @@
     {/if}
   {:else}
     <div class="text-center">
-      <p style="color: var(--text-2);">No portfolios found matching your criteria.</p>
+      <p>No portfolios found matching your criteria.</p>
     </div>
   {/if}
 </div>

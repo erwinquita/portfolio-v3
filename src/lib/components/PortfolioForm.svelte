@@ -348,43 +348,5 @@
   .button:not(:disabled):hover {
     transform: translateY(-1px);
   }
-  
-  /* View mode styles */
-  .portfolio-details {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .detail-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  
-  .detail-row strong {
-    font-weight: 600;
-    color: #374151;
-  }
-  
-  .detail-row span,
-  .detail-row a {
-    color: #6b7280;
-  }
-  
-  .detail-row a {
-    text-decoration: underline;
-    color: #3b82f6;
-  }
-  
-  .detail-row a:hover {
-    color: #2563eb;
-  }
-  
-  .description {
-    margin: 0;
-    line-height: 1.6;
-    color: #6b7280;
-  }
 </style>
 
