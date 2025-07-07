@@ -11,6 +11,8 @@ export async function GET({ url }) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const category = searchParams.get('category');
     const search = searchParams.get('search');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
     const categoriesOnly = searchParams.get('categories');
     
     // If requesting categories only
@@ -31,6 +33,18 @@ export async function GET({ url }) {
     if (search) {
       conditions.push(
         like(portfolios.title, `%${search}%`)
+      );
+    }
+    
+    if (dateFrom) {
+      conditions.push(
+        sql`date(${portfolios.createdAt}) >= ${dateFrom}`
+      );
+    }
+    
+    if (dateTo) {
+      conditions.push(
+        sql`date(${portfolios.createdAt}) <= ${dateTo}`
       );
     }
     

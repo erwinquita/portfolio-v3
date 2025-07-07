@@ -160,13 +160,3 @@ dialog h2 {
   background: var(--gray-2);
   font-weight: var(--font-weight-6);
 }
-
-.table-actions {
-  display: flex;
-  gap: var(--size-1);
-}
-
-.table-actions button {
-  padding: var(--size-1) var(--size-2);
-  font-size: var(--font-size-0);
-}

@@ -14,6 +14,8 @@
   let totalPages = $state(0);
   let selectedCategory = $state('');
   let searchQuery = $state('');
+  let dateFrom = $state('');
+  let dateTo = $state('');
   
   let { data } = $props();
 
@@ -21,8 +23,8 @@
   const ITEMS_PER_PAGE = 4;
   
   // Reactive computed values for button states
-  let isSearchDisabled = $derived(!searchQuery.trim() && !selectedCategory);
-  let isResetDisabled = $derived(!searchQuery.trim() && !selectedCategory);
+  let isSearchDisabled = $derived(!searchQuery.trim() && !selectedCategory && !dateFrom && !dateTo);
+  let isResetDisabled = $derived(!searchQuery.trim() && !selectedCategory && !dateFrom && !dateTo);
   
   async function fetchPortfolios() {
     loading = true;
@@ -31,7 +33,9 @@
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
         ...(selectedCategory && { category: selectedCategory }),
-        ...(searchQuery.trim() && { search: searchQuery.trim() })
+        ...(searchQuery.trim() && { search: searchQuery.trim() }),
+        ...(dateFrom && { dateFrom: dateFrom }),
+        ...(dateTo && { dateTo: dateTo })
       });
       
       const response = await fetch(`/api/portfolio?${params}`);
@@ -97,6 +101,8 @@
     if (isResetDisabled) return;
     searchQuery = '';
     selectedCategory = '';
+    dateFrom = '';
+    dateTo = '';
     currentPage = 1;
     fetchPortfolios();
   }
@@ -251,20 +257,49 @@
   <!-- Search and Filter Controls -->
   <div class="search-controls">
     <div class="search-group">
-      <input
-        type="text"
-        placeholder="Search portfolios..."
-        bind:value={searchQuery}
-        onkeydown={handleKeydown}
-        class="search-input"
-      />
-      <select bind:value={selectedCategory} onchange={handleCategoryChange} class="category-select">
-        <option value="">All Categories</option>
-        {#each categories as category}
-          <option value={category.category}>{category.category}</option>
-        {/each}
-      </select>
+      <div class="input-group">
+        <label for="search-input" class="visually-hidden">Search portfolios</label>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search portfolios..."
+          bind:value={searchQuery}
+          onkeydown={handleKeydown}
+          class="search-input"
+        />
+      </div>
+      <div class="input-group">
+        <label for="category-select" class="visually-hidden">Filter by category</label>
+        <select id="category-select" bind:value={selectedCategory} onchange={handleCategoryChange} class="category-select">
+          <option value="">All Categories</option>
+          {#each categories as category}
+            <option value={category.category}>{category.category}</option>
+          {/each}
+        </select>
+      </div>
     </div>
+    
+    <div class="date-range-group">
+      <div class="input-group">
+        <label for="date-from" class="date-label">From:</label>
+        <input
+          id="date-from"
+          type="date"
+          bind:value={dateFrom}
+          class="date-input"
+        />
+      </div>
+      <div class="input-group">
+        <label for="date-to" class="date-label">To:</label>
+        <input
+          id="date-to"
+          type="date"
+          bind:value={dateTo}
+          class="date-input"
+        />
+      </div>
+    </div>
+    
     <div class="search-buttons">
       <button class="button secondary" onclick={handleSearch} disabled={isSearchDisabled}>
         Search
@@ -278,7 +313,7 @@
   {#if loading}
     <div class="loading">Loading portfolios...</div>
   {:else if portfolios.length === 0}
-    <p>No portfolios found. {searchQuery || selectedCategory ? 'Try adjusting your search criteria.' : 'Create your first portfolio to get started!'}</p>
+    <p>No portfolios found. {searchQuery || selectedCategory || dateFrom || dateTo ? 'Try adjusting your search criteria.' : 'Create your first portfolio to get started!'}</p>
   {:else}
     <table class="table">
       <thead>
@@ -311,7 +346,7 @@
             <td>
               {#if getProjectUrl(portfolio)}
                 <a href={getProjectUrl(portfolio)} target="_blank" rel="noopener noreferrer" class="external-link">
-                  View Project
+                  View Url
                 </a>
               {:else}
                 <span class="text-muted">No URL</span>
@@ -385,7 +420,7 @@
     display: flex;
     gap: 1rem;
     margin-bottom: 1.5rem;
-    align-items: center;
+    align-items: flex-end;
     flex-wrap: wrap;
   }
   
@@ -394,6 +429,18 @@
     gap: 0.5rem;
     flex: 1;
     min-width: 300px;
+  }
+  
+  .date-range-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+  }
+  
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
   
   .search-input {
@@ -410,6 +457,31 @@
     min-width: 150px;
   }
   
+  .date-input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 140px;
+  }
+  
+  .date-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  
   .search-buttons {
     display: flex;
     gap: 0.5rem;
@@ -421,6 +493,11 @@
     color: #666;
   }
   
+  .text-muted {
+    color: #999;
+    font-style: italic;
+  }
+  
   .category-badge {
     background-color: #e3f2fd;
     color: #1976d2;
@@ -428,21 +505,6 @@
     border-radius: 12px;
     font-size: 0.875rem;
     font-weight: 500;
-  }
-  
-  .user-name {
-    font-weight: 500;
-    color: #333;
-  }
-  
-  .external-link {
-    color: #1976d2;
-    text-decoration: none;
-    font-weight: 500;
-  }
-  
-  .external-link:hover {
-    text-decoration: underline;
   }
   
   @media (max-width: 768px) {
@@ -453,6 +515,11 @@
     
     .search-group {
       min-width: auto;
+      flex-direction: column;
+    }
+    
+    .date-range-group {
+      justify-content: center;
     }
     
     .search-buttons {
