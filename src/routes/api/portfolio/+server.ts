@@ -1,107 +1,90 @@
-import { json } from '@sveltejs/kit';
-import { db } from '$lib//db/server';
+// /src/routes/api/portfolio/+server.ts
+import { db } from '$lib/db/server';
 import { portfolios, user, categories } from '$lib/db/server/schema';
-import { eq, like, and, desc, count } from 'drizzle-orm';
-import type { RequestHandler } from './$types';
+import { eq, like, and, sql } from 'drizzle-orm';
+import { json } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ url }) => {
+export async function GET({ url }) {
   try {
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const categoryFilter = url.searchParams.get('category');
-    const searchQuery = url.searchParams.get('search');
+    const searchParams = url.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const category = searchParams.get('category');
+    const search = searchParams.get('search');
+    const categoriesOnly = searchParams.get('categories');
+    
+    // If requesting categories only
+    if (categoriesOnly) {
+      const categoriesData = await db.select().from(categories);
+      return json({ categories: categoriesData });
+    }
     
     const offset = (page - 1) * limit;
     
     // Build where conditions
     const conditions = [];
-    if (categoryFilter) {
-      conditions.push(eq(categories.category, categoryFilter));
+    
+    if (category) {
+      conditions.push(eq(categories.category, category));
     }
-    if (searchQuery) {
+    
+    if (search) {
       conditions.push(
-        like(portfolios.title, `%${searchQuery}%`)
+        like(portfolios.title, `%${search}%`)
       );
     }
     
-    // Get total count
-    const totalCountQuery = db
-      .select({ count: count() })
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    // Get total count for pagination
+    const [totalCount] = await db
+      .select({ count: sql<number>`count(*)` })
       .from(portfolios)
-      .innerJoin(user, eq(portfolios.userId, user.id))
-      .innerJoin(categories, eq(portfolios.categoryId, categories.id));
+      .leftJoin(categories, eq(portfolios.categoryId, categories.id))
+      .where(whereClause);
     
-    if (conditions.length > 0) {
-      totalCountQuery.where(and(...conditions));
-    }
+    const totalPages = Math.ceil(totalCount.count / limit);
     
-    const [{ count: totalCount }] = await totalCountQuery;
-    
-    // Get portfolios with pagination
-    const portfoliosQuery = db
+    // Get paginated portfolios with joined data
+    const portfolioData = await db
       .select({
         id: portfolios.id,
         title: portfolios.title,
         description: portfolios.description,
-        url: portfolios.projectUrl,
+        imageUrl: portfolios.imageUrl,
+        projectUrl: portfolios.projectUrl,
+        tags: portfolios.tags,
         userId: portfolios.userId,
         categoryId: portfolios.categoryId,
         createdAt: portfolios.createdAt,
-        userName: user.name,
-        userEmail: user.email,
-        category: categories.category,
+        updatedAt: portfolios.updatedAt,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        category: {
+          id: categories.id,
+          category: categories.category
+        }
       })
       .from(portfolios)
-      .innerJoin(user, eq(portfolios.userId, user.id))
-      .innerJoin(categories, eq(portfolios.categoryId, categories.id))
-      .orderBy(desc(portfolios.createdAt))
+      .leftJoin(user, eq(portfolios.userId, user.id))
+      .leftJoin(categories, eq(portfolios.categoryId, categories.id))
+      .where(whereClause)
+      .orderBy(portfolios.createdAt)
       .limit(limit)
       .offset(offset);
     
-    if (conditions.length > 0) {
-      portfoliosQuery.where(and(...conditions));
-    }
-    
-    const portfolioList = await portfoliosQuery;
-    
-    const totalPages = Math.ceil(totalCount / limit);
-    
     return json({
-      portfolios: portfolioList,
+      portfolios: portfolioData,
       currentPage: page,
       totalPages,
-      totalCount,
+      totalCount: totalCount.count
     });
+    
   } catch (error) {
     console.error('Error fetching portfolios:', error);
     return json({ error: 'Failed to fetch portfolios' }, { status: 500 });
   }
-};
-
-export const POST: RequestHandler = async ({ request }) => {
-  try {
-    const data = await request.json();
-    
-    const { title, description, projectUrl, userId, categoryId } = data;
-    
-    if (!title || !description || !projectUrl || !userId || !categoryId) {
-      return json({ error: 'All fields are required' }, { status: 400 });
-    }
-    
-    const [newPortfolio] = await db
-      .insert(portfolios)
-      .values({
-        title,
-        description,
-        projectUrl,
-        userId: parseInt(userId),
-        categoryId: parseInt(categoryId),
-      })
-      .returning();
-    
-    return json({ portfolio: newPortfolio }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating portfolio:', error);
-    return json({ error: 'Failed to create portfolio' }, { status: 500 });
-  }
-};
+}

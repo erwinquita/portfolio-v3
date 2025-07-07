@@ -1,11 +1,117 @@
 <script>
+  import { onMount } from 'svelte';
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
   import Dialog from '$lib/components/Dialog.svelte';
   import PortfolioForm from '$lib/components/PortfolioForm.svelte';
+  import Pagination from '$lib/components/Pagination.svelte';
+
+  let portfolios = $state([]);
+  let categories = $state([]);
+  let loading = $state(true);
+  let currentPage = $state(1);
+  let totalPages = $state(0);
+  let selectedCategory = $state('');
+  let searchQuery = $state('');
   
   let { data } = $props();
+
+  // pagination component
+  const ITEMS_PER_PAGE = 4;
+  
+  // Reactive computed values for button states
+  let isSearchDisabled = $derived(!searchQuery.trim() && !selectedCategory);
+  let isResetDisabled = $derived(!searchQuery.trim() && !selectedCategory);
+  
+  async function fetchPortfolios() {
+    loading = true;
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        ...(selectedCategory && { category: selectedCategory }),
+        ...(searchQuery.trim() && { search: searchQuery.trim() })
+      });
+      
+      const response = await fetch(`/api/portfolio?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        portfolios = data.portfolios || [];
+        totalPages = data.totalPages || 0;
+      } else {
+        console.error('Failed to fetch portfolios:', await response.text());
+        portfolios = [];
+        totalPages = 0;
+      }
+    } catch (error) {
+      console.error('Error fetching portfolios:', error);
+      portfolios = [];
+      totalPages = 0;
+    } finally {
+      loading = false;
+    }
+  }
+  
+  async function fetchCategories() {
+    try {
+      // Try the categories endpoint first
+      let response = await fetch('/api/portfolio/categories');
+      
+      // If that fails, try getting categories from the main endpoint
+      if (!response.ok) {
+        console.log('Categories endpoint failed, trying alternative method');
+        response = await fetch('/api/portfolio?categories=true');
+      }
+      
+      if (response.ok) {
+        const data = await response.json();
+        categories = data.categories || [];
+      } else {
+        console.error('Failed to fetch categories:', await response.text());
+        categories = [];
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      categories = [];
+    }
+  }
+  
+  function handlePageChange(page) {
+    currentPage = page;
+    fetchPortfolios();
+  }
+  
+  function handleCategoryChange() {
+    currentPage = 1;
+    fetchPortfolios();
+  }
+  
+  function handleSearch() {
+    if (isSearchDisabled) return;
+    currentPage = 1;
+    fetchPortfolios();
+  }
+  
+  function handleReset() {
+    if (isResetDisabled) return;
+    searchQuery = '';
+    selectedCategory = '';
+    currentPage = 1;
+    fetchPortfolios();
+  }
+  
+  function handleKeydown(e) {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  }
+
+  onMount(() => {
+    fetchPortfolios();
+    fetchCategories();
+  });
+  // end pagination
   
   // Dialog state
   let portfolioDialog = $state(false);
@@ -27,13 +133,21 @@
   }
   
   function openEditDialog(portfolio) {
-    currentPortfolio = portfolio;
+    // Transform the portfolio data to match form field names
+    currentPortfolio = {
+      ...portfolio,
+      url: portfolio.projectUrl // Map projectUrl to url for form compatibility
+    };
     portfolioMode = 'edit';
     portfolioDialog = true;
   }
   
   function openViewDialog(portfolio) {
-    currentPortfolio = portfolio;
+    // Transform the portfolio data to match form field names
+    currentPortfolio = {
+      ...portfolio,
+      url: portfolio.projectUrl // Map projectUrl to url for form compatibility
+    };
     portfolioMode = 'view';
     portfolioDialog = true;
   }
@@ -70,6 +184,7 @@
     if (response.ok) {
       closeDialogs();
       await invalidateAll();
+      await fetchPortfolios(); // Refresh the local portfolios state
       toast.success('Portfolio created successfully!');
     } else {
       toast.error('Failed to create portfolio. Please try again.');
@@ -87,6 +202,7 @@
     if (response.ok) {
       closeDialogs();
       await invalidateAll();
+      await fetchPortfolios(); // Refresh the local portfolios state
       toast.success('Portfolio updated successfully!');
     } else {
       toast.error('Failed to update portfolio. Please try again.');
@@ -99,6 +215,19 @@
     } else if (portfolioMode === 'edit') {
       return handleEditSubmit(formData, formDataObj);
     }
+  }
+  
+  // Helper functions to safely access nested properties
+  function getCategoryName(portfolio) {
+    return portfolio?.category?.category || 'Uncategorized';
+  }
+  
+  function getUserName(portfolio) {
+    return portfolio?.user?.name || 'Unknown User';
+  }
+  
+  function getProjectUrl(portfolio) {
+    return portfolio?.projectUrl || null;
   }
   
   // Computed properties for dialog title
@@ -119,8 +248,37 @@
     <button class="button" onclick={openCreateDialog}>Add New Portfolio</button>
   </div>
   
-  {#if data.portfolios.length === 0}
-    <p>No portfolios found. Create your first portfolio to get started!</p>
+  <!-- Search and Filter Controls -->
+  <div class="search-controls">
+    <div class="search-group">
+      <input
+        type="text"
+        placeholder="Search portfolios..."
+        bind:value={searchQuery}
+        onkeydown={handleKeydown}
+        class="search-input"
+      />
+      <select bind:value={selectedCategory} onchange={handleCategoryChange} class="category-select">
+        <option value="">All Categories</option>
+        {#each categories as category}
+          <option value={category.category}>{category.category}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="search-buttons">
+      <button class="button secondary" onclick={handleSearch} disabled={isSearchDisabled}>
+        Search
+      </button>
+      <button class="button secondary" onclick={handleReset} disabled={isResetDisabled}>
+        Reset
+      </button>
+    </div>
+  </div>
+  
+  {#if loading}
+    <div class="loading">Loading portfolios...</div>
+  {:else if portfolios.length === 0}
+    <p>No portfolios found. {searchQuery || selectedCategory ? 'Try adjusting your search criteria.' : 'Create your first portfolio to get started!'}</p>
   {:else}
     <table class="table">
       <thead>
@@ -133,12 +291,32 @@
         </tr>
       </thead>
       <tbody>
-        {#each data.portfolios as portfolio}
+        {#each portfolios as portfolio}
           <tr>
             <td>{portfolio.title}</td>
-            <td>{portfolio.category?.category || 'Uncategorized'}</td>
-            <td>{portfolio.user?.name || 'Unknown'}</td>
-            <td><a href={portfolio.url} target="_blank" rel="noopener noreferrer">View</a></td>
+            <td>
+              {#if getCategoryName(portfolio) !== 'Uncategorized'}
+                <span class="category-badge">{getCategoryName(portfolio)}</span>
+              {:else}
+                <span class="text-muted">Uncategorized</span>
+              {/if}
+            </td>
+            <td>
+              {#if getUserName(portfolio) !== 'Unknown User'}
+                <span class="user-name">{getUserName(portfolio)}</span>
+              {:else}
+                <span class="text-muted">Unknown User</span>
+              {/if}
+            </td>
+            <td>
+              {#if getProjectUrl(portfolio)}
+                <a href={getProjectUrl(portfolio)} target="_blank" rel="noopener noreferrer" class="external-link">
+                  View Project
+                </a>
+              {:else}
+                <span class="text-muted">No URL</span>
+              {/if}
+            </td>
             <td class="table-actions">
               <button class="button secondary" onclick={() => openViewDialog(portfolio)}>View Details</button>
               <button class="button secondary" onclick={() => openEditDialog(portfolio)}>Edit</button>
@@ -148,6 +326,14 @@
         {/each}
       </tbody>
     </table>
+
+    {#if totalPages > 1}
+      <Pagination
+        {currentPage}
+        {totalPages}
+        onPageChange={handlePageChange}
+      />
+    {/if}
   {/if}
 </div>
 
@@ -177,6 +363,7 @@
         if (result.type === 'success') {
           closeDialogs();
           await invalidateAll();
+          await fetchPortfolios(); // Refresh the local portfolios state
           toast.success('Portfolio deleted successfully!');
         } else if (result.type === 'failure') {
           toast.error('Failed to delete portfolio. Please try again.');
@@ -193,3 +380,83 @@
   {/if}
 </Dialog>
 
+<style>
+  .search-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .search-group {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 300px;
+  }
+  
+  .search-input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .category-select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 150px;
+  }
+  
+  .search-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+  }
+  
+  .category-badge {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  
+  .user-name {
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .external-link {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .external-link:hover {
+    text-decoration: underline;
+  }
+  
+  @media (max-width: 768px) {
+    .search-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .search-group {
+      min-width: auto;
+    }
+    
+    .search-buttons {
+      justify-content: center;
+    }
+  }
+</style>

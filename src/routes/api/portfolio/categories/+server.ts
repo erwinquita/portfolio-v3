@@ -1,24 +1,14 @@
-import { json } from '@sveltejs/kit';
+// /src/routes/api/portfolio/categories/+server.ts
 import { db } from '$lib/db/server';
 import { categories } from '$lib/db/server/schema';
-import { asc } from 'drizzle-orm';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ url }) => {
+export async function GET() {
   try {
-    // Make sure we're only handling the categories endpoint
-    console.log('Fetching categories from:', url.pathname);
-    
-    const categoryList = await db
-      .select()
-      .from(categories)
-      .orderBy(asc(categories.category));
-    
-    console.log('Categories found:', categoryList.length);
-    
-    return json({ categories: categoryList });
+    const categoriesData = await db.select().from(categories);
+    return json({ categories: categoriesData });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return json({ error: 'Failed to fetch categories' }, { status: 500 });
   }
-};
+}
